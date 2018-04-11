@@ -1,0 +1,6 @@
+[package]
+name = "washington_post_converter"
+version = "0.1.0"
+authors = ["Binsheng Liu <441707+binshengliu@users.noreply.github.com>"]
+
+[dependencies]
