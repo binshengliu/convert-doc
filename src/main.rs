@@ -3,6 +3,7 @@ extern crate clap;
 extern crate serde_json;
 
 mod washingtonpost;
+mod topic;
 
 use clap::{App, Arg};
 
@@ -33,6 +34,17 @@ fn main() {
                 .help("Specify the type of files to be converted"),
         )
         .arg(
+            Arg::with_name("index")
+                .short("i")
+                .long("index")
+                // .default_value(".")
+                .value_name("DIRECTORY")
+                .takes_value(true)
+                .required_if("type", "topic")
+                // .display_order(1)
+                .help("Specify the directory for indexes"),
+        )
+        .arg(
             Arg::with_name("INPUT")
                 .required(true)
                 .multiple(true)
@@ -42,7 +54,7 @@ fn main() {
         .get_matches();
 
     match matches.value_of("type") {
-        Some("topic") => (),
+        Some("topic") => topic::main(matches),
         Some("wp") => washingtonpost::main(matches),
         _ => (),
     };

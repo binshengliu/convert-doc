@@ -6,3 +6,4 @@ authors = ["Binsheng Liu <441707+binshengliu@users.noreply.github.com>"]
 [dependencies]
 serde_json = "1.0.13"
 clap = "2.31.2"
+xml-rs = "0.7"
