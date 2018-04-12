@@ -1,11 +1,17 @@
+#[macro_use]
+extern crate clap;
 extern crate serde_json;
 
-use serde_json::Value;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter};
 use std::io::prelude::*;
 use std::path::Path;
+use std::process::exit;
+
+use serde_json::Value;
+
+use clap::{App, Arg};
 
 #[derive(Debug)]
 struct Article {
@@ -47,43 +53,65 @@ impl Article {
 }
 
 fn main() {
-    let paths = vec![
-        "/research/remote/collections/TREC/WashingtonPost/data/TREC_article_2012.txt",
-        "/research/remote/collections/TREC/WashingtonPost/data/TREC_article_2013.txt",
-        "/research/remote/collections/TREC/WashingtonPost/data/TREC_article_2014.txt",
-        "/research/remote/collections/TREC/WashingtonPost/data/TREC_article_2015.txt",
-        "/research/remote/collections/TREC/WashingtonPost/data/TREC_article_2016.txt",
-        "/research/remote/collections/TREC/WashingtonPost/data/TREC_article_2017.txt",
-        "/research/remote/collections/TREC/WashingtonPost/data/TREC_blog_2012.txt",
-        "/research/remote/collections/TREC/WashingtonPost/data/TREC_blog_2013.txt",
-        "/research/remote/collections/TREC/WashingtonPost/data/TREC_blog_2014.txt",
-        "/research/remote/collections/TREC/WashingtonPost/data/TREC_blog_2015.txt",
-        "/research/remote/collections/TREC/WashingtonPost/data/TREC_blog_2016.txt",
-        "/research/remote/collections/TREC/WashingtonPost/data/TREC_blog_2017.txt",
-    ];
+    let matches = App::new("convert_doc")
+        .version(crate_version!())
+        .author(crate_authors!())
+        .about("A tool for converting collection format.")
+        .arg(
+            Arg::with_name("output")
+                .short("o")
+                .long("output")
+                .default_value(".")
+                .value_name("DIRECTORY")
+                .takes_value(true)
+                .display_order(1)
+                .help("Specify the output directory"),
+        )
+        .arg(
+            Arg::with_name("INPUT")
+                .required(true)
+                .multiple(true)
+                .display_order(1000)
+                .help("Specify files to convert"),
+        )
+        .get_matches();
+
+    let out_dir = matches.value_of("output").unwrap();
+    std::fs::create_dir_all(out_dir).unwrap_or_else(|e| {
+        println!("{}", e);
+        exit(1)
+    });
+
+    let paths = matches.values_of("INPUT").unwrap().collect::<Vec<_>>();
+
     for path in &paths {
+        if !Path::new(path).is_file() {
+            println!("{} is not a file. Ignored.", path);
+            continue;
+        }
+
         print!("Processing {} ... ", path);
         std::io::stdout().flush().ok();
-        convert_json_file(path).unwrap_or_else(|e| println!("{:?}", e));
+        convert_json_file(path, &out_dir).unwrap_or_else(|e| println!("{:?}", e));
         println!("done.");
     }
 }
 
-fn convert_json_file<P: AsRef<Path>>(path: P) -> Result<(), Box<Error>> {
-    let outpath = path.as_ref().to_path_buf();
-    let outpath = outpath.file_name().unwrap();
-    let mut outpath = Path::new(outpath).to_path_buf();
-    outpath.set_extension("trec");
-    let outfile = File::create(outpath)?;
-    let mut outfile = BufWriter::new(outfile);
+fn convert_json_file<P: AsRef<Path>>(path: P, out_dir: P) -> Result<(), Box<Error>> {
+    let out_name = path.as_ref().file_name().unwrap();
+    let mut out_name = Path::new(out_name).to_path_buf();
+    out_name.set_extension("trec.txt");
+    let out_path = out_dir.as_ref().join(out_name);
+    let out_file = File::create(out_path)?;
+    let mut out_file = BufWriter::new(out_file);
 
-    let file = File::open(path)?;
+    let file = File::open(&path)?;
     let line_reader = BufReader::new(file);
     for line in line_reader.lines() {
         let line = line?;
         let article = parse_article(serde_json::from_str(&line)?);
         let output = article.to_trec_string();
-        outfile.write_all(output.as_bytes()).ok();
+        out_file.write_all(output.as_bytes()).ok();
     }
     Ok(())
 }
